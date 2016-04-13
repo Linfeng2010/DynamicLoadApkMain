@@ -3,11 +3,12 @@ package com.example.zhang.dynamicloadapkmain;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.pm.PackageInfo;
+import android.content.res.AssetManager;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 
 import java.io.File;
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -35,12 +36,16 @@ public class ProxyActivity extends Activity {
 
     private Map<String,Method>  targetLifeCircle = new HashMap<String,Method>();
     private Object instance;
+    private Resources mResources;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mDexPath = getIntent().getStringExtra(EXTRA_DEX_PATH);
         mClass = getIntent().getStringExtra(EXTRA_CLASS);
+
+        //创建资产管理器
+        AssetManager mAssetManager = createAssetManager(mDexPath);
 
         Log.d(TAG,"mDexPath>>"+mDexPath+"   mClass>>>"+mClass);
         if(mClass == null)
@@ -51,6 +56,27 @@ public class ProxyActivity extends Activity {
             launchTargetActivity(mClass);
         }
 
+    }
+
+    @Override
+    public Resources getResources() {
+        return mResources == null? super.getResources():mResources;
+    }
+
+    private AssetManager createAssetManager(String mDexPath) {
+
+        try {
+            AssetManager assetManager = AssetManager.class.newInstance();
+            Method addAssetPath = AssetManager.class.getDeclaredMethod("addAssetPath", new Class[]{});
+            addAssetPath.setAccessible(true);
+            addAssetPath.invoke(assetManager,mDexPath);
+
+            return assetManager;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 
     @Override
