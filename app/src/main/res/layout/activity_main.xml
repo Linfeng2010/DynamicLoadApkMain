@@ -10,8 +10,9 @@
     tools:context="com.example.zhang.dynamicloadapkmain.MainActivity">
 
     <Button
+        android:layout_centerInParent="true"
         android:onClick="onClick"
-        android:text="loadPlugin"
+        android:text="startPlugin"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 </RelativeLayout>

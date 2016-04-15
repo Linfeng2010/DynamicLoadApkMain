@@ -3,8 +3,6 @@ package com.example.zhang.dynamicloadapkmain;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.pm.PackageInfo;
-import android.content.res.AssetManager;
-import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -12,6 +10,7 @@ import java.io.File;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,7 +35,6 @@ public class ProxyActivity extends Activity {
 
     private Map<String,Method>  targetLifeCircle = new HashMap<String,Method>();
     private Object instance;
-    private Resources mResources;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,8 +42,7 @@ public class ProxyActivity extends Activity {
         mDexPath = getIntent().getStringExtra(EXTRA_DEX_PATH);
         mClass = getIntent().getStringExtra(EXTRA_CLASS);
 
-        //创建资产管理器
-        AssetManager mAssetManager = createAssetManager(mDexPath);
+
 
         Log.d(TAG,"mDexPath>>"+mDexPath+"   mClass>>>"+mClass);
         if(mClass == null)
@@ -58,26 +55,6 @@ public class ProxyActivity extends Activity {
 
     }
 
-    @Override
-    public Resources getResources() {
-        return mResources == null? super.getResources():mResources;
-    }
-
-    private AssetManager createAssetManager(String mDexPath) {
-
-        try {
-            AssetManager assetManager = AssetManager.class.newInstance();
-            Method addAssetPath = AssetManager.class.getDeclaredMethod("addAssetPath", new Class[]{});
-            addAssetPath.setAccessible(true);
-            addAssetPath.invoke(assetManager,mDexPath);
-
-            return assetManager;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
 
     @Override
     protected void onStart() {
@@ -165,7 +142,8 @@ public class ProxyActivity extends Activity {
         for(String name:methodNames)
         {
             try {
-                Method declaredMethod = clazz.getMethod(name, new Class[]{});
+                Method declaredMethod = clazz.getSuperclass().getDeclaredMethod(name,new Class[]{});
+                declaredMethod.setAccessible(true);
                 targetLifeCircle.put(name,declaredMethod);
             } catch (NoSuchMethodException e) {
                 e.printStackTrace();
@@ -193,29 +171,33 @@ public class ProxyActivity extends Activity {
     @SuppressLint("NewApi")
     private void launchTargetActivity(String className)
     {
-        Log.d(TAG,"******static launchTargetActivity ,className= "+className);
+        Log.w("flag","static launchTargetActivity ,className= "+className);
         File dexOutput = this.getDir("dex",MODE_PRIVATE);
         String dexOutputPath = dexOutput.getAbsolutePath();
-        ClassLoader localClassLoder = ClassLoader.getSystemClassLoader();
-        DexClassLoader dexClassLoader = new DexClassLoader(mDexPath,dexOutputPath,null,localClassLoder);
+        ClassLoader localClassLoader = ClassLoader.getSystemClassLoader();
+        DexClassLoader dexClassLoader = new DexClassLoader(mDexPath,dexOutputPath,null,localClassLoader);
         try {
             Class<?> localClass = dexClassLoader.loadClass(className);
+            Log.w("flag","localClass= "+localClass);
             initTargetLifeCircle(localClass);
             Constructor<?> localConstructor = localClass.getConstructor(new Class[]{});
             instance = localConstructor.newInstance(new Object[]{});
-            Log.d(TAG,"instance = "+ instance);
+            Log.w("flag","instance = "+ instance);
 
-            Method setProxy = localClass.getMethod("setProxy",new Class[]{Activity.class});
+            Method setProxy = localClass.getMethod("setProxy",Activity.class);
+            Log.d("flag",setProxy+"×××");
             setProxy.setAccessible(true);
             setProxy.invoke(instance,this);
 
-            Method onCreate = localClass.getDeclaredMethod("onCreate",new Class[]{Bundle.class});
+            Method onCreate = localClass.getDeclaredMethod("onCreate",Bundle.class);
+            Log.d("flag",onCreate+"×××");
             onCreate.setAccessible(true);
             Bundle bundle = new Bundle();
             bundle.putInt(FROM,FROM_EXTERNAL);
             onCreate.invoke(instance,bundle);
 
         } catch (Exception e) {
+            Log.w("flag","e.getMessage= "+Arrays.toString(e.getStackTrace()));
             e.printStackTrace();
         }
 
